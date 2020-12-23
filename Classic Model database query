@@ -1,0 +1,509 @@
+use classicmodels;
+
+#single entity
+#1
+select * from offices
+order by country, state, city;
+
+#2
+select count(employeeNumber) from employees;
+
+#3
+select sum(amount) from payments ;
+
+#4
+select *  from productlines
+where productLine like '%Cars%';
+
+#5
+select * from payments
+where paymentDate = '2004-10-28';
+
+#6
+select * from payments
+where amount > 100000;
+
+#7
+select * from products
+order by productLine;
+
+#8
+select count(productCode), productLine from products
+group by productLine;
+
+#9
+select min(amount) from payments;
+
+#10
+select amount from payments
+where amount > (select avg(amount) from payments ) * 2 ;
+
+#11
+select avg((MSRP-buyPrice)/buyPrice) from products;
+
+#12
+select count(distinct productName) from products;
+
+#13
+select customerName,city from customers
+where isnull(salesRepEmployeeNumber);
+
+#14
+select concat(firstName, ' ', lastName) as fullname from employees
+where jobTitle like '%VP%' or jobTitle like '%Manager%';
+
+#15 
+select orderNumber, sum(quantityOrdered * priceEach) as sum from orderdetails
+group by orderNumber
+having sum(quantityOrdered * priceEach) > 5000;
+
+#One to many relationship
+#1
+select customerName, salesRepEmployeeNumber from customers;
+
+#2
+select sum(amount) as sum
+from customers c
+left join payments p
+on c.customerNumber = p.customerNumber
+where c.customerName = 'Atelier graphique';
+
+#3
+select paymentDate, sum(amount) as total
+from payments
+group by paymentDate
+order by paymentDate;
+
+#4
+select productCode from products 
+where productCode not in
+(select distinct productCode from orderdetails);
+
+#5
+select customerName, sum(amount) as total
+from payments p left join customers c on p.customerNumber = c.customerNumber
+group by p.customerNumber;
+
+#6
+select count(o.orderNumber) as count
+from customers c
+left join orders o
+on c.customerNumber = o.customerNumber
+where c.customerName = 'Herkku Gifts';
+
+#7
+select e.employeeNumber, concat(firstName,' ',lastName)
+from employees e
+left join offices o
+on e.officeCode = o.officeCode
+where o.city = 'Boston';
+
+#8
+select customerName, amount
+from payments p
+left join customers s on p.customerNumber = s.customerNumber
+where amount > 100000
+order by amount desc;
+
+#9
+select orderNumber, amount from orders o
+left join payments p on p.customerNumber=o.customerNumber
+where status = 'On Hold';
+
+#10
+select count(c.customerNumber), orderNumber,  customerName, status from orders o
+left join payments p on p.customerNumber=o.customerNumber
+left join customers c on c.customerNumber=o.customerNumber
+where status = 'On Hold'
+group by c.customerNumber;
+
+#Many to many relationship
+#1
+select o.orderDate, od.productCode
+from orders o
+left join orderdetails od
+on o.orderNumber = od.orderNumber
+order by o.orderDate;
+
+#2
+select o.orderDate, o.orderNumber
+from orders o
+left join orderdetails od
+on o.orderNumber = od.orderNumber
+left join products p
+on p.productCode = od.productCode
+where p.productName = '1940 Ford Pickup Truck'
+order by o.orderDate desc;
+
+#3
+select c.customerName, o.orderNumber, total
+from customers c
+inner join orders o
+on c.customerNumber = o.customerNumber
+inner join (select orderNumber, sum(quantityOrdered * priceEach) as total from orderdetails group by orderNumber) as temp
+on o.orderNumber = temp.orderNumber
+where temp.total > 25000;
+
+#4
+select productCode, count(*) as count
+from orderdetails
+group by productCode
+having count(*) = (select count(distinct orderNumber) from orderdetails);
+
+#5
+select distinct od.productCode
+from orderdetails od
+inner join products p
+on od.productCode = p.productCode
+where od.priceEach < 0.8 * p.MSRP;
+
+#6
+select distinct od.productCode
+from orderdetails od
+inner join products p
+on od.productCode = p.productCode
+where od.priceEach > 2 * p.buyPrice;
+
+#7
+select o.ordernumber, productCode
+from orders o 
+inner join orderdetails od on o.orderNumber=od.orderNumber
+where date_format(o.orderDate, '%W') = 'Monday';
+
+#8
+select sum(quantityOrdered) 
+from
+(select orderNumber 
+from orders 
+where status='On Hold') tmp
+inner join orderdetails od on tmp.orderNumber = od.orderNumber;
+
+#Regular expressions
+#1
+select *
+from products
+where productName like '%Ford%';
+
+#2
+select *
+from products
+where productName like '%ship';
+
+#3
+select country, count(*) as count
+from customers
+where country in ('Denmark', 'Norway', 'Sweden')
+group by country;
+
+#4
+select productCode
+from products
+where productCode regexp 'S700_1[0-4][0-9][0-9]';
+
+#5
+select *
+from customers
+where customerName regexp '[0-9]';
+
+#6
+select * 
+from employees
+where lastName regexp 'Dianne|Diane' or firstName regexp 'Dianne|Diane';
+
+#7
+select *
+from products
+where productName regexp 'boat|ship';
+
+#8
+select *
+from products
+where productCode regexp '^S700';
+
+#9
+select lastName, firstName
+from employees
+where concat(firstName, ' ', lastName) regexp 'Larry|Barry';
+
+#10
+select lastName, firstName
+from employees
+where concat(firstName, lastName) regexp '[^a-zA-Z]';
+
+#11
+select productVendor
+from products
+where productVendor regexp 'Diecast$';
+
+#General queries
+#1
+select *
+from employees
+where isnull(reportsTo);
+
+#2
+select a.firstName, a.lastName
+from employees a
+inner join employees b
+on a.reportsTo = b.employeeNumber
+where b.firstName = 'William' and b.lastName = 'Patterson';
+    
+#3
+select productName 
+from orderdetails left join products on orderdetails.productCode = products.productCode
+where orderNumber in
+(select orderNumber from orders
+where customerNumber in
+(select customerNumber from customers
+where customerName='Herkku Gifts'));
+
+#4
+select concat(e.lastName,' ', e.firstName) as NAME, sum(tmp.total * 0.05) as commission
+from orders o
+left join (select orderNumber, sum(quantityOrdered * priceEach) as total from orderdetails group by orderNumber) as tmp
+on tmp.orderNumber = o.orderNumber
+left join customers c
+on c.customerNumber = o.customerNumber 
+left join employees e
+on e.employeeNumber = c.salesRepEmployeeNumber
+group by e.employeeNumber
+order by NAME;
+
+#5
+select datediff(max(orderDate),min(orderDate))
+from orders;
+
+#6
+select avg(datediff(shippedDate,orderDate)) as diff
+from orders
+group by customerNumber
+order by diff desc;
+
+#7
+select sum(quantityOrdered * priceEach) as total from orderdetails
+where orderNumber in(
+select orderNumber from orders
+where  date_format(shippedDate, '%Y%m' ) = '200408');
+
+#8
+CREATE OR REPLACE view total_paid
+as select sum(amount) as total_paid, customerNumber from payments 
+where date_format(paymentDate, '%Y')=2004
+group by customerNumber;
+
+CREATE OR REPLACE view total_order
+as select sum(quantityOrdered*priceEach) as total_order, customerNumber 
+from orderdetails od left join orders o on o.orderNumber=od.orderNumber 
+where date_format(orderDate, '%Y') = 2004
+group by customerNumber;
+
+select total_paid, total_order, (total_paid-total_order)
+from total_paid join total_order on total_order.customerNumber = total_paid.customerNumber;
+
+#9
+select concat(a.firstName, ' ', a.lastName) as empName
+from employees a
+inner join employees b
+on a.reportsTo = b.employeeNumber
+inner join employees c
+on b.reportsTo = c.employeeNumber
+where c.firstName = 'Diane' and c.lastName = 'Murphy';
+
+#10
+select productCode, MSRP * quantityInStock/ (select sum(MSRP * quantityInStock) from products) as percent
+from products;
+
+#11
+delimiter $$
+create function mpg_to_lkm(mpg double)
+returns double
+begin
+	return (100 * 3.785) / (1.609 * mpg);
+end $$
+delimiter ;
+
+#12
+delimiter $$
+create procedure increase_price(PrCode varchar(20), percent float)
+begin 
+	update products set MSRP = MSRP*( 1 + percent)
+    where productCode = PrCode;
+end $$
+delimiter ;
+
+#14
+select bymonth, payment_total / order_total as ratio
+from
+(select date_format(orderDate, '%Y%m') as bymonth, sum(val) as order_total
+from orders o
+inner join (select orderNumber, sum(quantityOrdered * priceEach) as val from orderdetails group by orderNumber) as temp
+using(orderNumber)
+where date_format(orderDate, '%Y') = '2004'
+group by date_format(orderDate, '%Y%m')
+order by bymonth) a
+inner join (select date_format(paymentDate, '%Y%m') as bymonth, sum(amount) as payment_total from payments group by date_format(paymentDate, '%Y%m')) b
+using(bymonth);
+
+#15
+select months, four-three as dif
+from
+(select date_format(paymentDate, '%m') as months, sum(amount) as four
+from payments
+where date_format(paymentDate, '%Y') = '2004'
+group by date_format(paymentDate, '%m')) a
+inner join 
+(select date_format(paymentDate, '%m') as months, sum(amount) as three
+from payments
+where date_format(paymentDate, '%Y') = '2003'
+group by date_format(paymentDate, '%m')) b
+using(months)
+order by months;
+
+#16
+delimiter $$
+create procedure report(YM varchar(6), name varchar(20))
+begin
+	select * from orders o 
+    left join 
+    (select orderNumber, sum(quantityOrdered * priceEach) as total from orderdetails group by orderNumber) as tmp
+    on o.orderNumber = tmp.orderNumber 
+    left join customers c
+    on c.customerNumber = o.customerNumber
+    where date_format(orderDate, '%Y%m') = YM and customerName = name;
+end $$
+delimiter ;
+
+#17
+delimiter $$
+create procedure change_creditLimit(ctry varchar(30), percent float)
+begin
+	update customers set creditLimit = creditLimit * (1 + percent)
+    where country = ctry;
+end $$
+delimiter ;
+
+#18
+select productCode, pcode, a.orderNumber from
+(select productCode, orderNumber
+from orderdetails) a
+inner join
+(select orderNumber, productCode as pcode
+from orderdetails) b
+on a.orderNumber = b.orderNumber
+where productCode != pcode
+group by productCode, pcode
+having count(*) >=10;
+
+#19
+select *, total / (select sum(quantityOrdered * priceEach) from orderdetails) as percent
+from
+(select customerName, sum(total) as total
+from orders o
+inner join (select orderNumber, sum(quantityOrdered * priceEach) as total from orderdetails group by orderNumber) as temp
+on o.orderNumber=temp.orderNumber
+inner join customers c
+on c.customerNumber=o.customerNumber
+group by customerName) temp2;
+
+#20
+select *, total_profit / (select sum(quantityOrdered * (priceEach - buyPrice))
+						from orderdetails od
+						inner join products p
+						using(productCode)) as percent
+from
+(select customerName, sum(profit) as total_profit
+from orders o
+inner join (select orderNumber, sum(quantityOrdered * (priceEach - buyPrice)) as profit
+from orderdetails od
+inner join products p
+on p.productCode = od.productCode
+group by orderNumber) profits
+on profits.orderNumber = o.orderNumber
+inner join customers c
+on c.customerNumber = o.customerNumber
+group by customerName) temp
+order by total_profit desc;
+
+#21
+select salesRepEmployeeNumber, sum(quantityOrdered * priceEach) as revenue
+from orderdetails
+inner join orders
+on orders.orderNumber = orderdetails.orderNumber
+inner join customers c
+on c.customerNumber = orders.customerNumber
+group by salesRepEmployeeNumber;
+
+#22
+select salesRepEmployeeNumber, sum(quantityOrdered * (priceEach - buyPrice)) as profit
+from orderdetails
+inner join products
+on products.productCode = orderdetails.productCode
+inner join orders
+on orders.orderNumber = orderdetails.orderNumber
+inner join customers
+on customers.customerNumber = orders.customerNumber
+group by salesRepEmployeeNumber
+order by profit desc;
+
+#23
+select productName, sum(quantityOrdered * priceEach) as revenue
+from orderdetails
+inner join products
+using(productCode)
+group by productName;
+
+#24
+select productLine, sum(quantityOrdered * (priceEach - buyPrice)) as profit
+from products
+inner join orderdetails
+using(productCode)
+group by productLine
+order by profit desc;
+
+#25
+select productCode, sales2004/sales2003 as ratio
+from
+(select productCode, sum(quantityOrdered * priceEach) as sales2004
+from orderdetails
+inner join orders
+using(orderNumber)
+where year(orderDate) = '2004'
+group by productCode) a
+inner join (select productCode, sum(quantityOrdered * priceEach) as sales2003
+			from orderdetails
+			inner join orders
+			using(orderNumber)
+			where year(orderDate) = '2003'
+			group by productCode) b
+using(productCode);
+
+#26
+select customerNumber, amount2004/amount2003 as ratio
+from
+(select customerNumber, sum(amount) as amount2003
+from payments
+where year(paymentDate) = '2003'
+group by customerNumber) a
+inner join (select customerNumber, sum(amount) as amount2004
+			from payments
+			where year(paymentDate) = '2004'
+			group by customerNumber) b
+using(customerNumber);
+
+#27
+select distinct productCode
+from orderdetails
+inner join orders
+using(orderNumber)
+where year(orderDate) = '2003'
+		and	productCode not in (select productCode from orderdetails inner join orders using(orderNumber) where date_format(orderDate, '%Y') = '2004');
+
+#28
+select distinct customerNumber
+from payments
+where customerNumber not in (select customerNumber from payments where date_format(paymentDate, '%Y') = '2003');
+
+
+
+
+
